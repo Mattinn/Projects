@@ -1,14 +1,13 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../state/store';
+import { fetchBooks, setPage, setLimit } from '../state/books/booksSlice';
 import DataTable from 'react-data-table-component';
 import Spinner from './Spinner';
 import { useDebounce } from 'use-debounce';
 
-interface Props {
-  newFetch: (duration: string) => void;
-}
-
-const Search: React.FC<Props> = ({ newFetch }) => {
-
+const Search = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const getAuthors = (authors: string[] = []) => {
     // in some responses the author_name array is null or undefined
     if (!authors || authors.length === 0) {
@@ -18,12 +17,7 @@ const Search: React.FC<Props> = ({ newFetch }) => {
     return authors.length > 1 ? authors.join(', ') : authors[0];
   };
 
-  interface Document {
-    author_name: string[];
-    title: string;
-    edition_count: number;
-    first_publish_year: number;
-  }
+  const { books, loading, error, page, totalRows, limit } = useSelector((state: RootState) => state.books);
     
   const columns = [
       {
@@ -53,45 +47,17 @@ const Search: React.FC<Props> = ({ newFetch }) => {
 
   const handleBookQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
-    console.log('handleBookQuery', value)
     setSearchTerm(value);
   };
 
-  const refetchBooks = (event: React.MouseEvent<HTMLButtonElement>) => fetchBooks()
+  const refetchBooks = (event: React.MouseEvent<HTMLButtonElement>) => dispatch(fetchBooks({ searchTerm, page, limit }));
 
-  const [rows, setRows] =  useState<Document[]>([])
-  const [page, setPage] = useState<number>(1);
-  const [perPage, setPerPage] = useState<number>(25);
-  const [totalRows, setTotalRows] = useState<number>(0);
-
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-
-  const fetchBooks = useCallback(async () => {
-    if (!searchTerm) return;
-    const startTime = performance.now();
-    setPending(true)
-    try {
-      const response = await fetch(`https://openlibrary.org/search.json?q=${searchTerm}&page=${page}&limit=${perPage}`);
-      const data = await response.json();
-      const endTime = performance.now();
-      const duration = ((endTime - startTime) / 1000).toFixed(2);  // fetch time in seconds as string
-      setTotalRows(data.numFound)
-      setRows(data.docs);
-      newFetch(duration)
-      setPending(false)
-      setError('');
-    } catch (err) {
-      setError('Error fetching data from Open Library');
-    }
-  }, [debouncedQuery, page, perPage]);
-
-  //Add 500 ms debounce before fetching books
+  //add 500 ms input delay before fetching books
   useEffect(() => {
     if (debouncedQuery) {
-      fetchBooks()
+      dispatch(fetchBooks({ searchTerm, page, limit }));
     }
-  }, [debouncedQuery, fetchBooks]);
+  }, [debouncedQuery]);
 
 
   return (
@@ -110,27 +76,27 @@ const Search: React.FC<Props> = ({ newFetch }) => {
       <div className="table">
           <DataTable
             columns={columns}
-            data={rows}
+            data={books}
             fixedHeader
             pagination
-            noDataComponent={<div>No data available</div>}
-            progressPending={pending}
-            paginationDefaultPage={1}
-            paginationPerPage={perPage}
+            paginationServer
+            noDataComponent={<p>No data available</p>}
+            progressPending={loading}
+            paginationDefaultPage={page}
+            paginationPerPage={limit}
             paginationTotalRows={totalRows}
-            paginationRowsPerPageOptions={[10, 25, 50]}
+            paginationRowsPerPageOptions={[10, 25, 50, 100]}
             onChangePage={(page: number) => {
-              setPage(page);
-              fetchBooks();
+              dispatch(setPage(page));
+              dispatch(fetchBooks({ searchTerm, page: page, limit }));
             }}
             onChangeRowsPerPage={(newPerPage: number) => {
-              setPerPage(newPerPage);
-              setPage(1)
-              fetchBooks();
+              dispatch(setLimit(newPerPage));
+              dispatch(fetchBooks({ searchTerm, page, limit: newPerPage }))
             }}
           />
       </div>
-      {pending && <Spinner />}
+      {loading && <Spinner />}
       {error && <p className="error">{error}</p>}
     </div>
   );
