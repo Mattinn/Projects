@@ -1,7 +1,7 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
-import Spinner from './Spinner'
-import { debounce } from 'lodash';
+import Spinner from './Spinner';
+import { useDebounce } from 'use-debounce';
 
 interface Props {
   newFetch: (duration: string) => void;
@@ -27,37 +27,48 @@ const Search: React.FC<Props> = ({ newFetch }) => {
     
   const columns = [
       {
-          name: "Author",
+          name: 'Author',
           selector: (row: { author_name: string[]; }) => getAuthors(row?.author_name),
           sortable: true,
       },
       {
-          name: "Title",
+          name: 'Title',
           selector: (row: { title: string; }) => row.title,
           sortable: true,
       },
       {
-          name: "Editions",
+          name: 'Editions',
           selector: (row: { edition_count: number; }) => row.edition_count,
           sortable: true,
       },
       {
-          name: "First published",
+          name: 'First published',
           selector: (row: { first_publish_year: number; }) => row.first_publish_year,
           sortable: true,
       },
   ];
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedQuery] = useDebounce(searchTerm, 500);
+
+  const handleBookQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    console.log('handleBookQuery', value)
+    setSearchTerm(value);
+  };
+
+  const refetchBooks = (event: React.MouseEvent<HTMLButtonElement>) => fetchBooks()
+
   const [rows, setRows] =  useState<Document[]>([])
   const [page, setPage] = useState<number>(1);
   const [perPage, setPerPage] = useState<number>(25);
   const [totalRows, setTotalRows] = useState<number>(0);
+
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
   const fetchBooks = useCallback(async () => {
-		if (!searchTerm) return;
+    if (!searchTerm) return;
     const startTime = performance.now();
     setPending(true)
     try {
@@ -73,31 +84,25 @@ const Search: React.FC<Props> = ({ newFetch }) => {
     } catch (err) {
       setError('Error fetching data from Open Library');
     }
-  }, [searchTerm, page, perPage]);
+  }, [debouncedQuery, page, perPage]);
 
-  const refetchBooks = (event: React.MouseEvent<HTMLButtonElement>) => fetchBooks()
-
-  const debouncedFetch = useMemo(() => debounce(fetchBooks, 400), [fetchBooks]);
-
+  //Add 500 ms debounce before fetching books
   useEffect(() => {
-    if (searchTerm) {
-      debouncedFetch();
+    if (debouncedQuery) {
+      fetchBooks()
     }
-    // Cancel the debounce on unmount
-    return () => {
-      debouncedFetch.cancel();
-    };
-  }, [searchTerm, debouncedFetch]);
+  }, [debouncedQuery, fetchBooks]);
+
 
   return (
     <div className="search-container">
-      <div className='search-bar'>
+      <div className="search-bar">
         <input
           type="text"
           placeholder="Search for books..."
           className="search-input"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleBookQuery}
         />
         <button onClick={refetchBooks} className="button">Search</button>
       </div>
