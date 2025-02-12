@@ -1,5 +1,6 @@
-# Getting Started with Create React App
+# Library search app
 
+A simple UI that offers a search field that queries openlibrary.org API for authors and titles based on the user input and displays the in a paginated table. 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

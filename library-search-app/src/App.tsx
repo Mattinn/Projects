@@ -39,7 +39,7 @@ function App() {
         </div>
       ) : (
         <div className="login">
-          <h2>Please log in</h2>
+          <h2>Please enter your name</h2>
           <input
             type="text"
             placeholder="Enter your username"
@@ -49,7 +49,7 @@ function App() {
             className={`input ${loginError ? "input-error" : ""}`}
           />
           <button onClick={handleLogin} className="button">Login</button>
-          {loginError && <p className="error">Username is required</p>}
+          {loginError && <p className="error">Name is required</p>}
         </div>
       )}
     </div>
